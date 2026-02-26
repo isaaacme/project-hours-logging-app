@@ -1,0 +1,501 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getMockProjects } from '../config/mock-projects.ts';
+
+// Get mock projects - handle async properly
+const projects = await getMockProjects();
+
+// Get default date
+const getDefaultDate = () => {
+  return new Date().toISOString().split('T')[0];
+};
+
+const defaultDate = getDefaultDate();
+---
+
+<Layout title="דיווח שעות" description="דיווח יומי של שעות עבודה לפי פרויקט">
+  <main class="main-content">
+    <div class="container">
+      <header class="app-header">
+        <h1>יומן שעות פרויקטים</h1>
+        <p class="app-description">דיווח יומי של שעות עבודה לפי פרויקט</p>
+      </header>
+      
+      <div class="form-section">
+        <div class="form-wrapper">
+          <form id="hours-form" class="hours-form" method="POST" action="/thank-you">
+            <div class="form-group">
+              <label for="project" class="form-label">
+                פרויקט
+                <span class="required">*</span>
+              </label>
+              <select 
+                id="project" 
+                name="project" 
+                required
+                class="form-control"
+              >
+                <option value="">בחר פרויקט...</option>
+                {projects.map(project => (
+                  <option value={project.id}>{project.name}</option>
+                ))}
+              </select>
+              <div class="error-message" id="project-error"></div>
+            </div>
+
+            <div class="form-group">
+              <label for="date" class="form-label">
+                תאריך
+                <span class="required">*</span>
+              </label>
+              <input 
+                type="date" 
+                id="date" 
+                name="date" 
+                required
+                value={defaultDate}
+                max={new Date().toISOString().split('T')[0]}
+                class="form-control"
+              />
+              <div class="error-message" id="date-error"></div>
+            </div>
+
+            <div class="form-group">
+              <label for="hours" class="form-label">
+                סך השעות שעבדת היום
+                <span class="required">*</span>
+              </label>
+              <input 
+                type="number" 
+                id="hours" 
+                name="hours" 
+                required
+                min="0.1"
+                max="24"
+                step="0.01"
+                class="form-control"
+                placeholder="הכנס שעות (0.1-24)"
+              />
+              <div class="error-message" id="hours-error"></div>
+            </div>
+
+            <button type="submit" id="submit-btn" class="submit-btn">
+              <span class="btn-text">שלח דיווח שעות</span>
+              <span class="btn-loading" style="display: none;">טוען...</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    console.log('Form page loaded');
+    
+    // Form validation only - let form submit naturally
+    const form = document.getElementById('hours-form');
+    const submitBtn = document.getElementById('submit-btn');
+
+    console.log('Form element:', form);
+    console.log('Submit button:', submitBtn);
+
+    // Form validation
+    function validateForm() {
+      console.log('Validating form...');
+      let isValid = true;
+      const project = document.getElementById('project');
+      const date = document.getElementById('date');
+      const hours = document.getElementById('hours');
+
+      console.log('Form values:', {
+        project: project?.value,
+        date: date?.value,
+        hours: hours?.value
+      });
+
+      // Clear previous errors
+      document.querySelectorAll('.error-message').forEach(error => {
+        error.style.display = 'none';
+      });
+      document.querySelectorAll('.form-control').forEach(input => {
+        input.classList.remove('error');
+      });
+
+      // Validate project
+      if (!project.value) {
+        showError('project', 'שדה חובה');
+        isValid = false;
+      }
+
+      // Validate date
+      if (!date.value) {
+        showError('date', 'שדה חובה');
+        isValid = false;
+      } else {
+        const selectedDate = new Date(date.value);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (selectedDate > today) {
+          showError('date', 'תאריך לא יכול להיות בעתיד');
+          isValid = false;
+        }
+      }
+
+      // Validate hours
+      if (!hours.value) {
+        showError('hours', 'שדה חובה');
+        isValid = false;
+      } else {
+        const hoursNum = parseFloat(hours.value);
+        if (isNaN(hoursNum) || hoursNum <= 0 || hoursNum > 24) {
+          showError('hours', 'נא להזין מספר שעות תקין (0.1-24)');
+          isValid = false;
+        }
+      }
+
+      console.log('Form validation result:', isValid);
+      return isValid;
+    }
+
+    function showError(fieldId, message) {
+      console.log('Showing error for', fieldId, message);
+      const field = document.getElementById(fieldId);
+      const errorElement = document.getElementById(fieldId + '-error');
+      
+      field.classList.add('error');
+      errorElement.textContent = message;
+      errorElement.style.display = 'block';
+    }
+
+    // Form submission validation
+    if (form) {
+      form.addEventListener('submit', (e) => {
+        console.log('Form submit event triggered');
+        
+        if (!validateForm()) {
+          console.log('Validation failed, preventing submission');
+          e.preventDefault();
+          return false;
+        }
+
+        console.log('Validation passed, storing data and allowing submission');
+
+        // Store submission data before redirect
+        const formData = new FormData(form);
+        const projectSelect = document.getElementById('project');
+        const projectName = projectSelect.options[projectSelect.selectedIndex].text;
+        
+        const submissionData = {
+          projectId: formData.get('project'),
+          projectName,
+          date: formData.get('date'),
+          hours: formData.get('hours'),
+          submissionId: 'SUB-' + Date.now().toString(36).toUpperCase(),
+          submissionTime: new Date().toLocaleString('he-IL')
+        };
+
+        console.log('Submission data:', submissionData);
+
+        // Store in sessionStorage
+        sessionStorage.setItem('submissionData', JSON.stringify(submissionData));
+        
+        // Let the form submit normally to redirect to /thank-you
+        console.log('Allowing form to submit to:', form.action);
+        return true;
+      });
+    } else {
+      console.error('Form element not found!');
+    }
+
+    // Real-time validation
+    document.querySelectorAll('.form-control').forEach(input => {
+      input.addEventListener('blur', () => {
+        validateForm();
+      });
+      
+      input.addEventListener('input', () => {
+        const errorElement = document.getElementById(input.id + '-error');
+        if (errorElement) {
+          errorElement.style.display = 'none';
+        }
+        input.classList.remove('error');
+      });
+    });
+  </script>
+
+  <style>
+    /* Theme-aware styles */
+    body {
+      font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif !important;
+      color: #f9fafb !important;
+      background-color: #1a202c !important;
+      direction: rtl;
+      text-align: right;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Light theme overrides */
+    @media (prefers-color-scheme: light) {
+      body {
+        color: #111827 !important;
+        background-color: #fafbfc !important;
+      }
+    }
+
+    .main-content {
+      min-height: 100vh;
+      background-color: #1a202c;
+      padding: 0;
+      direction: rtl;
+      text-align: right;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .main-content {
+        background-color: #fafbfc;
+      }
+    }
+
+    .container {
+      width: 100%;
+      max-width: 100%;
+      padding: 24px;
+      margin: 0 auto;
+      box-sizing: border-box;
+      direction: rtl;
+    }
+
+    .app-header {
+      text-align: center;
+      margin-bottom: 48px;
+      direction: rtl;
+    }
+
+    .app-header h1 {
+      font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif !important;
+      font-size: 36px;
+      font-weight: 300;
+      color: #f9fafb !important;
+      margin: 0 0 16px 0;
+      line-height: 1.3;
+      direction: rtl;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .app-header h1 {
+        color: #1a202c !important;
+      }
+    }
+
+    .app-description {
+      font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif !important;
+      font-size: 18px;
+      color: #d1d5db !important;
+      margin: 0;
+      line-height: 1.7;
+      direction: rtl;
+      font-weight: 400;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .app-description {
+        color: #718096 !important;
+      }
+    }
+
+    .form-section {
+      background: #2d3748;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+      padding: 40px;
+      border: 1px solid #374151;
+      direction: rtl;
+      box-sizing: border-box;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .form-section {
+        background: #ffffff;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+        border-color: #e5e7eb;
+      }
+    }
+
+    .form-wrapper {
+      width: 100%;
+      direction: rtl;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      margin-bottom: 24px;
+    }
+
+    .form-label {
+      font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif !important;
+      font-size: 16px;
+      font-weight: 400;
+      color: #e2e8f0 !important;
+      margin: 0;
+      padding: 0;
+      text-align: right;
+      direction: rtl;
+      display: block;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .form-label {
+        color: #4a5568 !important;
+      }
+    }
+
+    .required {
+      color: #fc8181;
+      margin-right: 6px;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 16px 20px;
+      border: 1px solid #4b5563;
+      border-radius: 12px;
+      font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif !important;
+      font-size: 16px;
+      line-height: 1.6;
+      color: #f9fafb !important;
+      background-color: #374151;
+      box-sizing: border-box;
+      margin: 0;
+      text-align: right;
+      direction: rtl;
+      display: block;
+      transition: border-color 0.2s ease;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .form-control {
+        color: #111827 !important;
+        background-color: #ffffff;
+        border-color: #e2e8f0;
+      }
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-control.error {
+      border-color: #fc8181;
+      background-color: #742a2a;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .form-control.error {
+        background-color: #fef2f2;
+      }
+    }
+
+    .error-message {
+      font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif !important;
+      font-size: 14px;
+      font-weight: 400;
+      color: #fc8181 !important;
+      margin: 6px 0 0 0;
+      padding: 0;
+      text-align: right;
+      direction: rtl;
+      display: none;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 18px 32px;
+      border: none;
+      border-radius: 12px;
+      background-color: #4c51bf;
+      color: #ffffff !important;
+      font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif !important;
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1.5;
+      cursor: pointer;
+      margin: 12px 0 0 0;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 56px;
+      transition: background-color 0.2s ease;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .submit-btn {
+        background-color: #667eea;
+      }
+    }
+
+    .submit-btn:hover:not(:disabled) {
+      background-color: #4338ca;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .submit-btn:hover:not(:disabled) {
+        background-color: #2563eb;
+      }
+    }
+
+    .submit-btn:disabled {
+      background-color: #6b7280;
+      cursor: not-allowed;
+    }
+
+    /* Responsive design */
+    @media (min-width: 768px) {
+      .container {
+        padding: 32px;
+        max-width: 600px;
+      }
+
+      .app-header {
+        margin-bottom: 64px;
+      }
+
+      .app-header h1 {
+        font-size: 44px;
+        margin-bottom: 20px;
+      }
+
+      .app-description {
+        font-size: 20px;
+      }
+
+      .form-section {
+        padding: 56px;
+        border-radius: 20px;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .container {
+        padding: 40px;
+        max-width: 650px;
+      }
+
+      .app-header h1 {
+        font-size: 52px;
+        margin-bottom: 24px;
+      }
+
+      .form-section {
+        padding: 72px;
+      }
+    }
+  </style>
+</Layout>

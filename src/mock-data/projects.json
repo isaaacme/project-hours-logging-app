@@ -1,0 +1,84 @@
+{
+  "projects": [
+    {
+      "id": "project-001",
+      "name": "אתר אינטרנט חדש",
+      "client": "חברת טכנולוגיה בע\"מ",
+      "status": "active",
+      "budget": "150,000 ₪",
+      "startDate": "2024-01-15",
+      "endDate": "2024-06-30"
+    },
+    {
+      "id": "project-002", 
+      "name": "פיתוח אפליקציית מובייל",
+      "client": "סטארטאפ חדשני",
+      "status": "active",
+      "budget": "200,000 ₪",
+      "startDate": "2024-02-01",
+      "endDate": "2024-08-31"
+    },
+    {
+      "id": "project-003",
+      "name": "העברת מסד נתונים",
+      "client": "בנק לאומי",
+      "status": "active",
+      "budget": "80,000 ₪",
+      "startDate": "2024-03-01",
+      "endDate": "2024-05-15"
+    },
+    {
+      "id": "project-004",
+      "name": "שילוב מערכות API",
+      "client": "חברת ביטוח",
+      "status": "active",
+      "budget": "120,000 ₪",
+      "startDate": "2024-01-20",
+      "endDate": "2024-04-30"
+    },
+    {
+      "id": "project-005",
+      "name": "ביקורת אבטחה",
+      "client": "משרד ממשלתי",
+      "status": "active",
+      "budget": "60,000 ₪",
+      "startDate": "2024-02-15",
+      "endDate": "2024-03-30"
+    },
+    {
+      "id": "project-006",
+      "name": "ייעול ביצועים",
+      "client": "רשת מרכולים",
+      "status": "active",
+      "budget": "90,000 ₪",
+      "startDate": "2024-01-10",
+      "endDate": "2024-07-31"
+    },
+    {
+      "id": "project-007",
+      "name": "בדיקות משתמש",
+      "client": "חברת תוכנה",
+      "status": "active",
+      "budget": "45,000 ₪",
+      "startDate": "2024-02-20",
+      "endDate": "2024-04-20"
+    },
+    {
+      "id": "project-008",
+      "name": "עדכון תיעוד",
+      "client": "חברת תקשורת",
+      "status": "active",
+      "budget": "30,000 ₪",
+      "startDate": "2024-03-01",
+      "endDate": "2024-03-31"
+    }
+  ],
+  "metadata": {
+    "totalProjects": 8,
+    "activeProjects": 8,
+    "totalBudget": "775,000 ₪",
+    "lastUpdated": "2024-03-15T10:30:00Z",
+    "version": "1.0",
+    "source": "mock-data"
+  }
+}

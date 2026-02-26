@@ -1,0 +1,38 @@
+{
+  "users": [
+    {
+      "id": "user-001",
+      "name": "דוד כהן",
+      "email": "david.cohen@company.co.il",
+      "role": "developer",
+      "department": "פיתוח",
+      "hourlyRate": 150,
+      "status": "active"
+    },
+    {
+      "id": "user-002",
+      "name": "שרה לוי",
+      "email": "sara.levi@company.co.il",
+      "role": "designer",
+      "department": "עיצוב",
+      "hourlyRate": 120,
+      "status": "active"
+    },
+    {
+      "id": "user-003",
+      "name": "יוסי מזרחי",
+      "email": "yosi.mizrahi@company.co.il",
+      "role": "project_manager",
+      "department": "ניהול",
+      "hourlyRate": 180,
+      "status": "active"
+    }
+  ],
+  "metadata": {
+    "totalUsers": 3,
+    "activeUsers": 3,
+    "lastUpdated": "2024-03-15T09:00:00Z",
+    "version": "1.0",
+    "source": "mock-data"
+  }
+}

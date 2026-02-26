@@ -1,0 +1,38 @@
+{
+  "submissions": [
+    {
+      "id": "submission-001",
+      "projectId": "project-001",
+      "projectName": "אתר אינטרנט חדש",
+      "date": "2024-03-14",
+      "hours": 8.5,
+      "submittedAt": "2024-03-14T18:30:00Z",
+      "status": "approved"
+    },
+    {
+      "id": "submission-002",
+      "projectId": "project-002",
+      "projectName": "פיתוח אפליקציית מובייל",
+      "date": "2024-03-14",
+      "hours": 7.0,
+      "submittedAt": "2024-03-14T17:45:00Z",
+      "status": "pending"
+    },
+    {
+      "id": "submission-003",
+      "projectId": "project-003",
+      "projectName": "העברת מסד נתונים",
+      "date": "2024-03-13",
+      "hours": 6.5,
+      "submittedAt": "2024-03-13T19:20:00Z",
+      "status": "approved"
+    }
+  ],
+  "metadata": {
+    "totalSubmissions": 3,
+    "totalHours": 22.0,
+    "lastUpdated": "2024-03-14T18:30:00Z",
+    "version": "1.0",
+    "source": "mock-data"
+  }
+}

@@ -1,0 +1,475 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+// Get submission data from sessionStorage
+let submissionData = null;
+
+// This runs on the server, so we need to handle client-side data
+---
+
+<Layout title="תודה רבה!" description="דיווח השעות התקבל בהצלחה">
+  <main class="main-content">
+    <div class="container">
+      <div class="thank-you-section">
+        <div class="success-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+        </div>
+        
+        <div class="thank-you-header">
+          <h1>תודה רבה!</h1>
+          <p>דיווח השעות התקבל בהצלחה. פרטי ההגשה נשמרו במערכת.</p>
+        </div>
+        
+        <div class="submission-details" id="submission-details">
+          <h2>פרטי דיווח השעות</h2>
+          <div class="details-grid" id="details-grid">
+            <!-- Details will be populated by JavaScript -->
+          </div>
+        </div>
+        
+        <div class="action-buttons">
+          <button class="btn btn-secondary" onclick="newSubmission()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <line x1="9" y1="15" x2="15" y2="15"></line>
+            </svg>
+           דיווח שעות חדש 
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    console.log('Thank you page loaded');
+    
+    // Get submission data from sessionStorage
+    function getSubmissionData() {
+      const data = sessionStorage.getItem('submissionData');
+      console.log('Getting submission data:', data);
+      return data ? JSON.parse(data) : null;
+    }
+
+    // Format date for display
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('he-IL', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+
+    // Populate submission details
+    function populateDetails() {
+      console.log('Populating details...');
+      const data = getSubmissionData();
+      if (!data) {
+        console.log('No submission data found');
+        // If no data, show a message and redirect to form
+        const detailsGrid = document.getElementById('details-grid');
+        detailsGrid.innerHTML = `
+          <div class="no-data">
+            <p>לא נמצאו פרטי דיווב. אנא הגישו דיווב חדש.</p>
+          </div>
+        `;
+        return;
+      }
+
+      console.log('Submission data found:', data);
+      const detailsGrid = document.getElementById('details-grid');
+      detailsGrid.innerHTML = `
+        <div class="detail-item">
+          <span class="detail-label">מספר דיווב</span>
+          <span class="detail-value">${data.submissionId}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">פרויקט</span>
+          <span class="detail-value">${data.projectName}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">תאריך</span>
+          <span class="detail-value">${formatDate(data.date)}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">סך השעות שעבדת היום</span>
+          <span class="detail-value">${data.hours} שעות</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">שעת הגשה</span>
+          <span class="detail-value">${data.submissionTime}</span>
+        </div>
+      `;
+    }
+
+    // New submission
+    function newSubmission() {
+      console.log('New submission button clicked');
+      console.log('Redirecting to /form');
+      window.location.href = '/form';
+    }
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('DOM content loaded, initializing...');
+      populateDetails();
+      
+      // Test button click
+      const newSubmissionBtn = document.querySelector('.btn-secondary');
+      if (newSubmissionBtn) {
+        console.log('Found new submission button:', newSubmissionBtn);
+        newSubmissionBtn.addEventListener('click', () => {
+          console.log('Button clicked via event listener');
+          newSubmission();
+        });
+      } else {
+        console.error('New submission button not found!');
+      }
+    });
+  </script>
+
+  <style>
+    /* Theme-aware styles */
+    body {
+      font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif !important;
+      color: #f9fafb !important;
+      background-color: #1a202c !important;
+      direction: rtl;
+      text-align: right;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Light theme overrides */
+    @media (prefers-color-scheme: light) {
+      body {
+        color: #111827 !important;
+        background-color: #fafbfc !important;
+      }
+    }
+
+    .main-content {
+      min-height: 100vh;
+      background-color: #1a202c;
+      padding: 0;
+      direction: rtl;
+      text-align: right;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .main-content {
+        background-color: #fafbfc;
+      }
+    }
+
+    .container {
+      width: 100%;
+      max-width: 100%;
+      padding: 24px;
+      margin: 0 auto;
+      box-sizing: border-box;
+      direction: rtl;
+    }
+
+    .thank-you-section {
+      background: #2d3748;
+      border-radius: 20px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+      padding: 48px;
+      border: 1px solid #374151;
+      text-align: center;
+      direction: rtl;
+      box-sizing: border-box;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .thank-you-section {
+        background: #ffffff;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+        border-color: #e5e7eb;
+      }
+    }
+
+    .success-icon {
+      margin-bottom: 32px;
+      color: #48bb78;
+    }
+
+    .thank-you-header h1 {
+      font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif !important;
+      font-size: 32px;
+      font-weight: 300;
+      color: #48bb78 !important;
+      margin: 0 0 12px 0;
+      direction: rtl;
+    }
+
+    .thank-you-header p {
+      font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif !important;
+      font-size: 18px;
+      color: #d1d5db !important;
+      margin: 0 0 40px 0;
+      direction: rtl;
+      font-weight: 400;
+      line-height: 1.6;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .thank-you-header p {
+        color: #6b7280 !important;
+      }
+    }
+
+    .submission-details {
+      margin-bottom: 40px;
+      direction: rtl;
+    }
+
+    .submission-details h2 {
+      font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif !important;
+      font-size: 20px;
+      font-weight: 400;
+      color: #f9fafb !important;
+      margin: 0 0 20px 0;
+      direction: rtl;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .submission-details h2 {
+        color: #1a202c !important;
+      }
+    }
+
+    .details-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .detail-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      background-color: #374151;
+      border: 1px solid #4b5563;
+      border-radius: 12px;
+      direction: rtl;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .detail-item {
+        background-color: #f9fafb;
+        border-color: #e5e7eb;
+      }
+    }
+
+    .detail-label {
+      font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif !important;
+      font-size: 15px;
+      font-weight: 400;
+      color: #9ca3af !important;
+      direction: rtl;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .detail-label {
+        color: #6b7280 !important;
+      }
+    }
+
+    .detail-value {
+      font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif !important;
+      font-size: 15px;
+      font-weight: 500;
+      color: #f9fafb !important;
+      direction: rtl;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .detail-value {
+        color: #111827 !important;
+      }
+    }
+
+    .action-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      direction: rtl;
+    }
+
+    .btn {
+      padding: 16px 24px;
+      border: none;
+      border-radius: 12px;
+      font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif !important;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 52px;
+      text-decoration: none;
+      box-sizing: border-box;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background-color: #4c51bf;
+      color: #ffffff !important;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .btn-primary {
+        background-color: #667eea;
+      }
+    }
+
+    .btn-primary:hover {
+      background-color: #4338ca;
+      transform: translateY(-1px);
+    }
+
+    @media (prefers-color-scheme: light) {
+      .btn-primary:hover {
+        background-color: #2563eb;
+      }
+    }
+
+    .btn-secondary {
+      background-color: #374151;
+      color: #f9fafb !important;
+      border: 1px solid #4b5563;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .btn-secondary {
+        background-color: #f3f4f6;
+        color: #374151 !important;
+        border-color: #e5e7eb;
+      }
+    }
+
+    .btn-secondary:hover {
+      background-color: #4b5563;
+      transform: translateY(-1px);
+    }
+
+    @media (prefers-color-scheme: light) {
+      .btn-secondary:hover {
+        background-color: #e5e7eb;
+      }
+    }
+
+    .no-data {
+      text-align: center;
+      padding: 40px;
+      color: #d1d5db;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .no-data {
+        color: #6b7280;
+      }
+    }
+
+    .no-data p {
+      font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif !important;
+      font-size: 16px;
+      margin: 0;
+    }
+
+    /* Responsive design */
+    @media (min-width: 768px) {
+      .container {
+        padding: 32px;
+      }
+
+      .thank-you-section {
+        padding: 56px;
+        max-width: 700px;
+      }
+
+      .thank-you-header h1 {
+        font-size: 36px;
+      }
+
+      .btn {
+        max-width: 220px;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .container {
+        padding: 40px;
+      }
+
+      .thank-you-section {
+        padding: 64px;
+        max-width: 800px;
+      }
+    }
+
+    /* Print styles */
+    @media print {
+      body {
+        background: white !important;
+        color: black !important;
+      }
+
+      .main-content {
+        background: white !important;
+      }
+
+      .thank-you-section {
+        background: white !important;
+        box-shadow: none !important;
+        border: 1px solid #000 !important;
+        color: black !important;
+      }
+
+      .thank-you-header h1 {
+        color: #000 !important;
+      }
+
+      .thank-you-header p {
+        color: #000 !important;
+      }
+
+      .submission-details h2 {
+        color: #000 !important;
+      }
+
+      .detail-item {
+        background: white !important;
+        border: 1px solid #000 !important;
+        color: #000 !important;
+      }
+
+      .detail-label {
+        color: #000 !important;
+      }
+
+      .detail-value {
+        color: #000 !important;
+      }
+
+      .action-buttons {
+        display: none !important;
+      }
+    }
+  </style>
+</Layout>

@@ -1,0 +1,975 @@
+---
+import { appConfig } from '../config/app.config';
+import ThankYou from './ThankYou.astro';
+
+export interface Props {
+  projects: Array<{ id: string; name: string }>;
+}
+
+const { projects } = Astro.props;
+
+const getDefaultDate = () => {
+  if (appConfig.defaults.dateStrategy === 'today') {
+    return new Date().toISOString().split('T')[0];
+  }
+  return '';
+};
+
+const defaultDate = getDefaultDate();
+---
+
+<div id="hours-form-container" class="form-container">
+  <!-- Form View -->
+  <div id="form-view" class="form-view">
+    <form id="hours-form" class="hours-form" method="POST" action="javascript:void(0);">
+      <div class="form-group">
+        <label for="project" class="form-label">
+          {appConfig.labels.project}
+          <span class="required">*</span>
+        </label>
+        <select 
+          id="project" 
+          name="project" 
+          required
+          class="form-control"
+        >
+          <option value="">{appConfig.defaults.dropdownPlaceholder}</option>
+          {projects.map(project => (
+            <option value={project.id} data-name={project.name}>
+              {project.name}
+            </option>
+          ))}
+        </select>
+        <div class="error-message" id="project-error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="date" class="form-label">
+          {appConfig.labels.date}
+          <span class="required">*</span>
+        </label>
+        <input 
+          type="date" 
+          id="date" 
+          name="date" 
+          required
+          value={defaultDate}
+          max={new Date().toISOString().split('T')[0]}
+          class="form-control"
+        />
+        <div class="error-message" id="date-error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="hours" class="form-label">
+          {appConfig.labels.hours}
+          <span class="required">*</span>
+        </label>
+        <input 
+          type="number" 
+          id="hours" 
+          name="hours" 
+          required
+          min={appConfig.validation.hours.min}
+          max={appConfig.validation.hours.max}
+          step={appConfig.validation.hours.allowDecimals ? `0.${'0'.repeat(appConfig.validation.hours.decimalPlaces - 1)}1` : '1'}
+          class="form-control"
+          placeholder={`הכנס שעות (${appConfig.validation.hours.min}-${appConfig.validation.hours.max})`}
+        />
+        <div class="error-message" id="hours-error"></div>
+      </div>
+
+      <button type="submit" id="submit-btn" class="submit-btn">
+        <span class="btn-text">{appConfig.labels.submit}</span>
+        <span class="btn-loading" style="display: none;">{appConfig.labels.loading}</span>
+      </button>
+    </form>
+  </div>
+
+  <!-- Thank You View (Initially Hidden) -->
+  <div id="thank-you-view-wrapper" class="thank-you-view-wrapper" style="display: none;">
+  </div>
+</div>
+
+<script>
+  // Configuration inline for browser compatibility
+  const APP_CONFIG = {
+    // Form fields
+    FIELDS: {
+      PROJECT: 'פרויקט',
+      DATE: 'תאריך',
+      HOURS: 'סך השעות שעבדת היום',
+    },
+
+    // Buttons
+    BUTTONS: {
+      SUBMIT: 'שלח דיווח שעות',
+      SUBMITTING: 'טוען...',
+      RETRY: 'נסה שוב',
+    },
+
+    // Messages
+    MESSAGES: {
+      REQUIRED_FIELD: 'שדה חובה',
+      INVALID_HOURS: 'נא להזין מספר שעות תקין (0.1-24)',
+      INVALID_DATE: 'תאריך לא יכול להיות בעתיד',
+      SUBMISSION_ERROR: 'אירעה שגיאה. אנא נסה שוב.',
+      SUBMISSION_SUCCESS: 'הדיווח נשלח בהצלחה!',
+    },
+
+    // Thank you page
+    THANK_YOU: {
+      TITLE: 'תודה רבה!',
+      MESSAGE: 'דיווח השעות התקבל בהצלחה. פרטי ההגשה נשמרו במערכת.',
+      DETAILS_TITLE: 'פרטי דיווח השעות',
+      SUBMISSION_ID: 'מספר דיווח',
+      SUBMISSION_TIME: 'שעת הגשה',
+      PRINT_RECEIPT: 'הדפס קבלה',
+      NEW_SUBMISSION: 'דיווח שעות חדש',
+      CLOSE: 'סגור',
+    },
+
+    // Units
+    UNITS: {
+      HOURS: 'שעות',
+    },
+
+    // API
+    API: {
+      mockMode: true,
+    },
+  };
+
+  // Define interfaces for TypeScript
+  interface FormElements {
+    project: HTMLSelectElement | null;
+    date: HTMLInputElement | null;
+    hours: HTMLInputElement | null;
+  }
+
+  interface SubmissionData {
+    projectId: string;
+    projectName: string;
+    date: string;
+    hours: string;
+    submissionId: string;
+    submissionTime: string;
+  }
+
+  // Form validation and submission logic
+  class HoursForm {
+    private form: HTMLFormElement | null = null;
+    private submitBtn: HTMLButtonElement | null = null;
+    private formView: HTMLDivElement | null = null;
+    private thankYouViewWrapper: HTMLDivElement | null = null;
+    private isSubmitting: boolean = false;
+    private lastSubmissionData: SubmissionData | null = null;
+
+    constructor() {
+      this.init();
+    }
+
+    private init() {
+      console.log('HoursForm initializing...');
+      // Get form elements
+      this.form = document.querySelector('#hours-form');
+      this.submitBtn = document.querySelector('#submit-btn');
+      this.formView = document.querySelector('.form-view');
+      this.thankYouViewWrapper = document.querySelector('#thank-you-view-wrapper');
+
+      console.log('Form elements:', {
+        form: !!this.form,
+        submitBtn: !!this.submitBtn,
+        formView: !!this.formView,
+        thankYouViewWrapper: !!this.thankYouViewWrapper
+      });
+
+      if (this.form && this.submitBtn) {
+        this.setupEventListeners();
+        this.resetForm();
+        console.log('HoursForm initialized successfully');
+      } else {
+        console.error('HoursForm initialization failed - missing elements');
+      }
+    }
+
+    private setupEventListeners() {
+      if (!this.form || !this.submitBtn) return;
+
+      // Form submission - prevent default and handle manually
+      this.form.addEventListener('submit', (event: Event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        console.log('Form submission intercepted');
+        this.handleSubmit();
+      });
+
+      // Real-time validation
+      const inputs = this.form.querySelectorAll('input, select');
+      inputs.forEach((input: Element) => {
+        const htmlInput = input as HTMLInputElement | HTMLSelectElement;
+        htmlInput.addEventListener('blur', () => {
+          this.validateField(htmlInput);
+        });
+        
+        htmlInput.addEventListener('input', () => {
+          this.clearFieldError(htmlInput);
+        });
+      });
+    }
+
+    private async handleSubmit() {
+      console.log('handleSubmit called');
+      if (!this.form || !this.submitBtn || this.isSubmitting) {
+        console.log('Early return from handleSubmit');
+        return;
+      }
+
+      // Validate all fields
+      if (!this.validateForm()) {
+        console.log('Form validation failed');
+        return;
+      }
+
+      console.log('Form validation passed, setting submitting to true');
+      this.setSubmitting(true);
+
+      try {
+        // Get form data
+        const formData = new FormData(this.form);
+        const projectSelect = this.form.querySelector('#project') as HTMLSelectElement;
+        const projectName = projectSelect?.options[projectSelect.selectedIndex]?.text || 'Unknown Project';
+        
+        const submissionData: SubmissionData = {
+          projectId: formData.get('project') as string || '',
+          projectName,
+          date: formData.get('date') as string || '',
+          hours: formData.get('hours') as string || '',
+          submissionId: this.generateSubmissionId(),
+          submissionTime: new Date().toLocaleString('he-IL')
+        };
+
+        console.log('Submission data:', submissionData);
+
+        // Check if we're in mock mode
+        const isMockMode = APP_CONFIG.API.mockMode;
+        console.log('Mock mode:', isMockMode);
+
+        if (isMockMode) {
+          // In mock mode, show thank you view immediately
+          console.log('Mock mode: Simulating successful submission', submissionData);
+          this.lastSubmissionData = submissionData;
+          this.showThankYouView();
+          this.resetForm();
+        } else {
+          // In live mode, submit to API
+          const response = await fetch('/api/submit.json', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              projectId: submissionData.projectId,
+              date: submissionData.date,
+              hours: parseFloat(submissionData.hours),
+              description: '',
+            }),
+          });
+
+          if (response.ok) {
+            this.lastSubmissionData = submissionData;
+            this.showThankYouView();
+            this.resetForm();
+          } else {
+            throw new Error('Submission failed');
+          }
+        }
+      } catch (error) {
+        console.error('Error submitting form:', error);
+        this.showError(APP_CONFIG.MESSAGES.SUBMISSION_ERROR);
+      } finally {
+        this.setSubmitting(false);
+      }
+    }
+
+    private validateForm(): boolean {
+      if (!this.form) return false;
+
+      let isValid = true;
+      const inputs = this.form.querySelectorAll('input, select');
+      
+      inputs.forEach((input: Element) => {
+        const htmlInput = input as HTMLInputElement | HTMLSelectElement;
+        if (!this.validateField(htmlInput)) {
+          isValid = false;
+        }
+      });
+
+      return isValid;
+    }
+
+    private validateField(input: HTMLInputElement | HTMLSelectElement): boolean {
+      const value = input.value.trim();
+      const fieldName = input.name;
+      let isValid = true;
+      let errorMessage = '';
+
+      // Required field validation
+      if (!value) {
+        isValid = false;
+        errorMessage = APP_CONFIG.MESSAGES.REQUIRED_FIELD;
+      } else {
+        // Specific field validations
+        switch (fieldName) {
+          case 'hours':
+            const hours = parseFloat(value);
+            if (isNaN(hours) || hours <= 0 || hours > 24) {
+              isValid = false;
+              errorMessage = APP_CONFIG.MESSAGES.INVALID_HOURS;
+            }
+            break;
+          case 'date':
+            const date = new Date(value);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (date > today) {
+              isValid = false;
+              errorMessage = APP_CONFIG.MESSAGES.INVALID_DATE;
+            }
+            break;
+        }
+      }
+
+      if (!isValid) {
+        this.showFieldError(input, errorMessage);
+      } else {
+        this.clearFieldError(input);
+      }
+
+      return isValid;
+    }
+
+    private showFieldError(input: HTMLInputElement | HTMLSelectElement, message: string) {
+      input.classList.add('error');
+      const errorElement = document.getElementById(`${input.name}-error`);
+      if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.style.display = 'block';
+      }
+    }
+
+    private clearFieldError(input: HTMLInputElement | HTMLSelectElement) {
+      input.classList.remove('error');
+      const errorElement = document.getElementById(`${input.name}-error`);
+      if (errorElement) {
+        errorElement.style.display = 'none';
+      }
+    }
+
+    private showError(message: string) {
+      alert(message); // Simple error display - could be enhanced with a toast
+    }
+
+    private setSubmitting(submitting: boolean) {
+      this.isSubmitting = submitting;
+      if (this.submitBtn) {
+        this.submitBtn.disabled = submitting;
+        this.submitBtn.textContent = submitting ? APP_CONFIG.BUTTONS.SUBMITTING : APP_CONFIG.BUTTONS.SUBMIT;
+      }
+    }
+
+    private showThankYouView() {
+      if (!this.formView || !this.thankYouViewWrapper || !this.lastSubmissionData) return;
+
+      // Fade out form
+      this.formView.style.opacity = '0';
+      this.formView.style.transform = 'translateY(20px)';
+
+      setTimeout(() => {
+        this.formView!.style.display = 'none';
+        
+        // Generate thank you content
+        this.generateThankYouContent(this.lastSubmissionData!);
+        
+        // Show thank you view
+        this.thankYouViewWrapper!.style.opacity = '1';
+        this.thankYouViewWrapper!.style.position = 'relative';
+      }, 300);
+    }
+
+    private generateThankYouContent(data: SubmissionData) {
+      if (!this.thankYouViewWrapper) return;
+
+      const content = `
+        <div class="thank-you-container">
+          <div class="thank-you-content">
+            <div class="success-icon">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+            </div>
+            <div class="thank-you-header">
+              <h1>${APP_CONFIG.THANK_YOU.TITLE}</h1>
+              <p>${APP_CONFIG.THANK_YOU.MESSAGE}</p>
+            </div>
+            <div class="submission-details">
+              <h2>${APP_CONFIG.THANK_YOU.DETAILS_TITLE}</h2>
+              <div class="details-grid">
+                <div class="detail-item">
+                  <span class="detail-label">${APP_CONFIG.THANK_YOU.SUBMISSION_ID}</span>
+                  <span class="detail-value">${data.submissionId}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">${APP_CONFIG.FIELDS.PROJECT}</span>
+                  <span class="detail-value">${data.projectName}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">${APP_CONFIG.FIELDS.DATE}</span>
+                  <span class="detail-value">${this.formatDate(data.date)}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">${APP_CONFIG.FIELDS.HOURS}</span>
+                  <span class="detail-value">${data.hours} ${APP_CONFIG.UNITS.HOURS}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">${APP_CONFIG.THANK_YOU.SUBMISSION_TIME}</span>
+                  <span class="detail-value">${data.submissionTime}</span>
+                </div>
+              </div>
+            </div>
+            <div class="action-buttons">
+              <button class="btn btn-primary" onclick="window.hoursFormInstance.printReceipt()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                  <rect x="6" y="14" width="12" height="8"></rect>
+                </svg>
+                ${APP_CONFIG.THANK_YOU.PRINT_RECEIPT}
+              </button>
+              <button class="btn btn-secondary" onclick="window.hoursFormInstance.newSubmission()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="12" y1="18" x2="12" y2="12"></line>
+                  <line x1="9" y1="15" x2="15" y2="15"></line>
+                </svg>
+                ${APP_CONFIG.THANK_YOU.NEW_SUBMISSION}
+              </button>
+            </div>
+            <button class="close-btn" onclick="window.hoursFormInstance.closeThankYou()">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+      `;
+
+      this.thankYouViewWrapper.innerHTML = content;
+    }
+
+    private formatDate(dateString: string): string {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('he-IL', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+
+    printReceipt() {
+      window.print();
+    }
+
+    newSubmission() {
+      if (!this.formView || !this.thankYouViewWrapper) return;
+
+      // Hide thank you view
+      this.thankYouViewWrapper.style.opacity = '0';
+
+      setTimeout(() => {
+        this.thankYouViewWrapper!.style.position = 'absolute';
+        this.thankYouViewWrapper!.style.opacity = '0';
+        
+        // Show form
+        this.formView!.style.display = 'block';
+        
+        setTimeout(() => {
+          this.formView!.style.opacity = '1';
+          this.formView!.style.transform = 'translateY(0)';
+        }, 50);
+      }, 300);
+    }
+
+    closeThankYou() {
+      this.newSubmission();
+    }
+
+    private resetForm() {
+      if (!this.form) return;
+
+      // Reset form fields
+      const inputs = this.form.querySelectorAll('input, select');
+      inputs.forEach((input: Element) => {
+        const htmlInput = input as HTMLInputElement | HTMLSelectElement;
+        htmlInput.value = '';
+        htmlInput.classList.remove('error');
+      });
+
+      // Hide error messages
+      const errorMessages = this.form.querySelectorAll('.error-message');
+      errorMessages.forEach((error: Element) => {
+        (error as HTMLElement).style.display = 'none';
+      });
+
+      // Reset submit button
+      this.setSubmitting(false);
+    }
+
+    private generateSubmissionId(): string {
+      return 'SUB-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substr(2, 5).toUpperCase();
+    }
+  }
+
+  // Extend Window interface
+  declare global {
+    interface Window {
+      hoursFormInstance: HoursForm;
+    }
+  }
+
+  // Initialize form when DOM is ready
+  document.addEventListener('DOMContentLoaded', () => {
+    window.hoursFormInstance = new HoursForm();
+  });
+</script>
+
+<style>
+  /* Base container - Light and spacious */
+  .form-container {
+    width: 100%;
+    max-width: 100%;
+    padding: 24px;
+    box-sizing: border-box;
+  }
+
+  .form-view {
+    width: 100%;
+  }
+
+  .thank-you-view-wrapper {
+    position: relative;
+    width: 100%;
+  }
+
+  /* Form layout - More breathing room */
+  .hours-form {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Form groups - Light styling */
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    margin: 0;
+  }
+
+  /* Labels - Light and clean */
+  .form-label {
+    font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    color: #4a5568;
+    margin: 0;
+    padding: 0;
+    text-align: right;
+    direction: rtl;
+  }
+
+  .required {
+    color: #fc8181;
+    margin-right: 6px;
+  }
+
+  /* Form controls - Very light styling */
+  .form-control {
+    width: 100%;
+    padding: 16px 20px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #2d3748;
+    background-color: #ffffff;
+    box-sizing: border-box;
+    margin: 0;
+    text-align: right;
+    direction: rtl;
+    transition: all 0.2s ease;
+  }
+
+  .form-control:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.08);
+    background-color: #ffffff;
+  }
+
+  .form-control:hover {
+    border-color: #cbd5e0;
+  }
+
+  .form-control.error {
+    border-color: #fc8181;
+    background-color: #fff5f5;
+  }
+
+  /* Error messages - Light styling */
+  .error-message {
+    font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: #fc8181;
+    margin: 6px 0 0 0;
+    padding: 0;
+    text-align: right;
+    direction: rtl;
+    display: none;
+  }
+
+  /* Submit button - Light and elegant */
+  .submit-btn {
+    width: 100%;
+    padding: 18px 32px;
+    border: none;
+    border-radius: 12px;
+    background-color: #667eea;
+    color: #ffffff;
+    font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.5;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin: 12px 0 0 0;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 56px;
+    box-shadow: 0 2px 4px 0 rgba(102, 126, 234, 0.1);
+  }
+
+  .submit-btn:hover:not(:disabled) {
+    background-color: #5a67d8;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px 0 rgba(102, 126, 234, 0.15);
+  }
+
+  .submit-btn:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .submit-btn:disabled {
+    background-color: #a0aec0;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* Thank you modal - Light and airy */
+  .thank-you-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 1000;
+    box-sizing: border-box;
+    backdrop-filter: blur(4px);
+  }
+
+  .thank-you-content {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 48px;
+    max-width: 520px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    text-align: center;
+    font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+    box-sizing: border-box;
+    direction: rtl;
+  }
+
+  .success-icon {
+    margin-bottom: 32px;
+  }
+
+  .thank-you-header h1 {
+    font-size: 32px;
+    font-weight: 300;
+    color: #48bb78;
+    margin: 0 0 12px 0;
+    direction: rtl;
+  }
+
+  .thank-you-header p {
+    font-size: 18px;
+    color: #718096;
+    margin: 0 0 40px 0;
+    direction: rtl;
+    font-weight: 400;
+  }
+
+  .submission-details {
+    text-align: right;
+    margin-bottom: 40px;
+    direction: rtl;
+  }
+
+  .submission-details h2 {
+    font-size: 20px;
+    font-weight: 400;
+    color: #2d3748;
+    margin: 0 0 20px 0;
+    direction: rtl;
+  }
+
+  .details-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .detail-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background-color: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    direction: rtl;
+  }
+
+  .detail-label {
+    font-size: 15px;
+    font-weight: 400;
+    color: #718096;
+    direction: rtl;
+  }
+
+  .detail-value {
+    font-size: 15px;
+    font-weight: 500;
+    color: #2d3748;
+    direction: rtl;
+  }
+
+  .action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    direction: rtl;
+  }
+
+  .btn {
+    padding: 16px 24px;
+    border: none;
+    border-radius: 12px;
+    font-family: "Open Sans Hebrew", "Arial Hebrew", sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 52px;
+    text-decoration: none;
+    box-sizing: border-box;
+  }
+
+  .btn-primary {
+    background-color: #667eea;
+    color: #ffffff;
+    box-shadow: 0 2px 4px 0 rgba(102, 126, 234, 0.1);
+  }
+
+  .btn-primary:hover {
+    background-color: #5a67d8;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px 0 rgba(102, 126, 234, 0.15);
+  }
+
+  .btn-secondary {
+    background-color: #f7fafc;
+    color: #4a5568;
+    border: 1px solid #e2e8f0;
+  }
+
+  .btn-secondary:hover {
+    background-color: #edf2f7;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  .close-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: none;
+    border: none;
+    color: #a0aec0;
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+  }
+
+  .close-btn:hover {
+    background-color: #f7fafc;
+    color: #718096;
+  }
+
+  /* Responsive design - Generous spacing */
+  @media (min-width: 768px) {
+    .form-container {
+      padding: 32px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .hours-form {
+      gap: 32px;
+    }
+
+    .form-control {
+      padding: 18px 20px;
+      font-size: 16px;
+    }
+
+    .submit-btn {
+      padding: 18px 40px;
+      font-size: 16px;
+      width: auto;
+      align-self: flex-start;
+    }
+
+    .thank-you-content {
+      padding: 56px;
+      max-width: 560px;
+    }
+
+    .thank-you-header h1 {
+      font-size: 36px;
+    }
+
+    .action-buttons {
+      flex-direction: row;
+      justify-content: center;
+    }
+
+    .btn {
+      flex: 1;
+      max-width: 220px;
+    }
+
+    .close-btn {
+      display: none;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .form-container {
+      padding: 40px;
+      max-width: 650px;
+    }
+
+    .hours-form {
+      gap: 36px;
+    }
+
+    .thank-you-content {
+      padding: 64px;
+      max-width: 600px;
+    }
+  }
+
+  /* RTL fixes */
+  @supports (direction: rtl) {
+    .form-control {
+      direction: rtl;
+      text-align: right;
+    }
+    
+    select.form-control {
+      background-position: left 16px center;
+      padding-left: 48px;
+      padding-right: 20px;
+    }
+
+    .detail-item {
+      flex-direction: row-reverse;
+    }
+
+    .close-btn {
+      right: 20px;
+      left: auto;
+    }
+  }
+
+  /* Print styles */
+  @media print {
+    .thank-you-container {
+      position: static;
+      background: white;
+      padding: 0;
+      backdrop-filter: none;
+    }
+
+    .thank-you-content {
+      box-shadow: none;
+      border: 1px solid #e2e8f0;
+      max-width: 100%;
+      padding: 32px;
+    }
+
+    .action-buttons,
+    .close-btn {
+      display: none;
+    }
+  }
+
+  /* Light mode enhancements */
+  @media (prefers-color-scheme: light) {
+    .form-control {
+      background-color: #ffffff;
+    }
+
+    .thank-you-content {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+    }
+  }
+</style>
